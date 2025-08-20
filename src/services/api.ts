@@ -1,4 +1,4 @@
-const API_BASE = "/api"; // Point this to your FastAPI base URL
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export type LoginPayload = { email: string; password: string };
 export type SignupPayload = { name: string; email: string; password: string; categories: string[]; newsletter: boolean };

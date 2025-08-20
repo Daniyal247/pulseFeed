@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { api } from "@/services/api";
 
 export type User = {
   id: string;
@@ -26,32 +27,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Replace with FastAPI call
-    // const res = await api.login({ email, password }); setUser(res.user)
-    const mockUser: User = {
-      id: "demo",
-      name: email.split("@")[0] || "User",
-      email,
-      categories: JSON.parse(localStorage.getItem("pf:lastCategories") || "[]"),
-      newsletter: JSON.parse(localStorage.getItem("pf:lastNewsletter") || "false"),
-    };
-    setUser(mockUser);
-    localStorage.setItem("pf:user", JSON.stringify(mockUser));
+    try {
+      const res = await api.login({ email, password });
+      const userData: User = {
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        categories: res.user.categories,
+        newsletter: res.user.newsletter,
+      };
+      setUser(userData);
+      localStorage.setItem("pf:user", JSON.stringify(userData));
+      localStorage.setItem("pf:token", res.access_token);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
   };
 
   const signUp = async (name: string, email: string, password: string, categories: string[], newsletter: boolean) => {
-    // Replace with FastAPI call
-    // await api.signup({ name, email, password, categories, newsletter })
-    localStorage.setItem("pf:lastCategories", JSON.stringify(categories));
-    localStorage.setItem("pf:lastNewsletter", JSON.stringify(newsletter));
-    const mockUser: User = { id: "demo", name, email, categories, newsletter };
-    setUser(mockUser);
-    localStorage.setItem("pf:user", JSON.stringify(mockUser));
+    try {
+      const res = await api.signup({ name, email, password, categories, newsletter });
+      const userData: User = {
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        categories: res.user.categories,
+        newsletter: res.user.newsletter,
+      };
+      setUser(userData);
+      localStorage.setItem("pf:user", JSON.stringify(userData));
+      localStorage.setItem("pf:token", res.access_token);
+    } catch (error) {
+      console.error("Signup failed:", error);
+      throw error;
+    }
   };
 
   const signOut = () => {
     setUser(null);
     localStorage.removeItem("pf:user");
+    localStorage.removeItem("pf:token");
   };
 
   const value = useMemo(() => ({ user, signIn, signUp, signOut }), [user]);
