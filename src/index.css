@@ -105,7 +105,29 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  /* Force dark theme */
+  html {
+    @apply dark;
+  }
+
   body {
     @apply bg-background text-foreground;
+    background-color: #0a0a0a; /* Ensure very dark background */
+    color: #ffffff; /* Ensure white text */
+  }
+
+  /* Ensure all text elements are white */
+  h1, h2, h3, h4, h5, h6, p, span, div, a {
+    @apply text-foreground;
+  }
+
+  /* Override any remaining light colors */
+  .text-muted-foreground {
+    color: rgb(161 161 170) !important; /* Light gray for muted text */
+  }
+
+  /* Ensure buttons have proper contrast */
+  button {
+    @apply text-foreground;
   }
 }

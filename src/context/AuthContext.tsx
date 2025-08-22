@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api } from "@/services/api";
+import React, { createContext, useContext, useMemo, useState } from "react";
+// import { api } from "@/services/api"; // Auth disabled
 
 export type User = {
   id: string;
@@ -19,55 +19,63 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Auth disabled - always null user
+  const [user] = useState<User | null>(null);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("pf:user");
-    if (stored) setUser(JSON.parse(stored));
-  }, []);
+  // Disabled auth functionality
+  // useEffect(() => {
+  //   const stored = localStorage.getItem("pf:user");
+  //   if (stored) setUser(JSON.parse(stored));
+  // }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const res = await api.login({ email, password });
-      const userData: User = {
-        id: res.user.id,
-        name: res.user.name,
-        email: res.user.email,
-        categories: res.user.categories,
-        newsletter: res.user.newsletter,
-      };
-      setUser(userData);
-      localStorage.setItem("pf:user", JSON.stringify(userData));
-      localStorage.setItem("pf:token", res.access_token);
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    }
+    // Auth disabled
+    console.log("Authentication disabled");
+    // try {
+    //   const res = await api.login({ email, password });
+    //   const userData: User = {
+    //     id: res.user.id,
+    //     name: res.user.name,
+    //     email: res.user.email,
+    //     categories: res.user.categories,
+    //     newsletter: res.user.newsletter,
+    //   };
+    //   setUser(userData);
+    //   localStorage.setItem("pf:user", JSON.stringify(userData));
+    //   localStorage.setItem("pf:token", res.access_token);
+    // } catch (error) {
+    //   console.error("Login failed:", error);
+    //   throw error;
+    // }
   };
 
   const signUp = async (name: string, email: string, password: string, categories: string[], newsletter: boolean) => {
-    try {
-      const res = await api.signup({ name, email, password, categories, newsletter });
-      const userData: User = {
-        id: res.user.id,
-        name: res.user.name,
-        email: res.user.email,
-        categories: res.user.categories,
-        newsletter: res.user.newsletter,
-      };
-      setUser(userData);
-      localStorage.setItem("pf:user", JSON.stringify(userData));
-      localStorage.setItem("pf:token", res.access_token);
-    } catch (error) {
-      console.error("Signup failed:", error);
-      throw error;
-    }
+    // Auth disabled
+    console.log("Authentication disabled");
+    // try {
+    //   const res = await api.signup({ name, email, password, categories, newsletter });
+    //   const userData: User = {
+    //     id: res.user.id,
+    //     name: res.user.name,
+    //     email: res.user.email,
+    //     categories: res.user.categories,
+    //     newsletter: res.user.newsletter,
+    //   };
+    //   setUser(userData);
+    //   localStorage.setItem("pf:user", JSON.stringify(userData));
+    //   localStorage.setItem("pf:token", res.access_token);
+    // } catch (error) {
+    //   console.error("Signup failed:", error);
+    //   throw error;
+    // }
   };
 
   const signOut = () => {
-    setUser(null);
-    localStorage.removeItem("pf:user");
-    localStorage.removeItem("pf:token");
+    // Auth disabled
+    console.log("Authentication disabled");
+    // setUser(null);
+    // localStorage.removeItem("pf:user");
+    // localStorage.removeItem("pf:token");
   };
 
   const value = useMemo(() => ({ user, signIn, signUp, signOut }), [user]);
