@@ -156,7 +156,8 @@ const Index: React.FC = () => {
       utterance.rate = 0.8;
       utterance.pitch = 1;
       utterance.volume = 0.9;
-      utterance.lang = 'en-US'; // Set English language explicitly
+      // utterance.lang = 'en-US'; // Set English language explicitly
+      utterance.lang = 'ar';
       
       utterance.onstart = () => {
         console.log("News reading started");
