@@ -1,13 +1,15 @@
 // const API_BASE = import.meta.env.VITE_API_URL || "http://20.242.200.78:8000/api";
 // const WS_BASE = (import.meta.env.VITE_WS_URL as string) || API_BASE.replace(/^http/, "ws");
 const API_BASE = import.meta.env.VITE_API_URL || "https://pulse-backend-adghfgbhfrdtc3bb.z02.azurefd.net/api";
-
+console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
+console.log("API_BASE:", API_BASE);
 // Derive WS_BASE properly (wss if https, ws if http)
 const WS_BASE =
-  import.meta.env.VITE_WS_URL ||
-  (API_BASE.replace(/\/api$/, "").startsWith("https") 
-    ? API_BASE.replace(/\/api$/, "").replace(/^https/, "wss") 
-    : API_BASE.replace(/\/api$/, "").replace(/^http/, "ws"));
+import.meta.env.VITE_WS_URL ||
+(API_BASE.replace(/\/api$/, "").startsWith("https") 
+? API_BASE.replace(/\/api$/, "").replace(/^https/, "wss") 
+: API_BASE.replace(/\/api$/, "").replace(/^http/, "ws"));
+console.log("WS_BASE:", WS_BASE);
 
 export type LoginPayload = { email: string; password: string };
 export type SignupPayload = { name: string; email: string; password: string; categories: string[]; newsletter: boolean };
