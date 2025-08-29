@@ -5,7 +5,8 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://pulse-backend-adghfgbh
 // Derive WS_BASE properly (wss if https, ws if http)
 const WS_BASE =
   import.meta.env.VITE_WS_URL ||
-  API_BASE.replace(/^http/, window.location.protocol === "https:" ? "wss" : "ws");
+  (API_BASE.startsWith("https") ? API_BASE.replace(/^https/, "wss") : API_BASE.replace(/^http/, "ws"));
+
 
 export type LoginPayload = { email: string; password: string };
 export type SignupPayload = { name: string; email: string; password: string; categories: string[]; newsletter: boolean };
