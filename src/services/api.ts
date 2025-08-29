@@ -1,5 +1,11 @@
+// const API_BASE = import.meta.env.VITE_API_URL || "http://20.242.200.78:8000/api";
+// const WS_BASE = (import.meta.env.VITE_WS_URL as string) || API_BASE.replace(/^http/, "ws");
 const API_BASE = import.meta.env.VITE_API_URL || "http://20.242.200.78:8000/api";
-const WS_BASE = (import.meta.env.VITE_WS_URL as string) || API_BASE.replace(/^http/, "ws");
+
+// Derive WS_BASE properly (wss if https, ws if http)
+const WS_BASE =
+  import.meta.env.VITE_WS_URL ||
+  API_BASE.replace(/^http/, window.location.protocol === "https:" ? "wss" : "ws");
 
 export type LoginPayload = { email: string; password: string };
 export type SignupPayload = { name: string; email: string; password: string; categories: string[]; newsletter: boolean };
