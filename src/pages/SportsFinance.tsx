@@ -1,0 +1,531 @@
+import React, { useEffect, useMemo, useState } from "react";
+import SEO from "@/components/SEO";
+import Header from "@/components/layout/Header";
+import Navigation from "@/components/layout/Navigation";
+import NewsCard, { NewsItem } from "@/components/news/NewsCard";
+import PodcastCard, { PodcastItem } from "@/components/podcast/PodcastCard";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Volume2, VolumeX, Headphones } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ALL_CATEGORIES } from "@/constants/categories";
+import { api } from "@/services/api";
+import elevenlabsStreamingTTS from "@/services/elevenlabs-streaming-tts";
+
+// Enhanced mock items with longer 60-word summaries
+const mockItems: NewsItem[] = Array.from({ length: 16 }).map((_, i) => ({
+  id: String(i + 1),
+  title: `Breaking News: ${ALL_CATEGORIES[i % ALL_CATEGORIES.length]} Development ${i + 1}`,
+  summary: "This is a comprehensive 60-word summary that provides detailed information about the current news story. It covers the key points, implications, and context that readers need to understand the significance of this development. The summary includes background information, current status, and potential future impacts on various stakeholders and the broader market situation.",
+  content: "This is the comprehensive coverage of this story. Detailed Analysis: The situation encompasses multiple dimensions that require careful examination. Industry experts have been monitoring these developments closely, providing valuable insights into the broader implications.",
+  llm_summary: "ملخص شامل للأخبار العاجلة مع تحليل مفصل للتطورات الجارية والتأثيرات المحتملة على مختلف الأطراف المعنية.",
+  image: "/placeholder.svg",
+  category: ALL_CATEGORIES[i % ALL_CATEGORIES.length],
+  source: "PulseFeed Wire",
+  published_at: new Date(Date.now() - i * 3600_000).toISOString(),
+}));
+
+// Podcast mock data with Arabic descriptions
+const podcastMockItems: PodcastItem[] = [
+  {
+    id: "p2",
+    title: "الأخبار الاقتصادية اليومية",
+    description: "متابعة شاملة للأسواق المالية العالمية والمحلية. تحليل اقتصادي متعمق للاتجاهات والفرص الاستثمارية مع تقييم المخاطر والتوقعات المستقبلية للأسواق.",
+    category: "Business",
+    host: "سارة الاقتصادية",
+    duration: "30 دقيقة",
+    published_at: new Date(Date.now() - 2 * 24 * 3600_000).toISOString(),
+  },
+  {
+    id: "p3",
+    title: "رياضة بلا حدود",
+    description: "تغطية شاملة للأحداث الرياضية المحلية والعالمية. مقابلات حصرية مع الرياضيين والمدربين وتحليل فني للمباريات والبطولات المهمة.",
+    category: "Sports",
+    host: "محمد الرياضي",
+    duration: "40 دقيقة",
+    published_at: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
+  },
+  {
+    id: "p5",
+    title: "تحليل الأسواق المالية",
+    description: "برنامج متخصص في تحليل الأسواق المالية والاستثمارات. نقدم نصائح استثمارية من خبراء معتمدين ونناقش أحدث التطورات في عالم المال والأعمال.",
+    category: "Business",
+    host: "عمر المالي",
+    duration: "35 دقيقة",
+    published_at: new Date(Date.now() - 5 * 24 * 3600_000).toISOString(),
+  },
+];
+
+const SportsFinance: React.FC = () => {
+  const navigate = useNavigate();
+  const [newsItems, setNewsItems] = useState<NewsItem[]>(() => {
+    // Try to load saved news from localStorage first
+    try {
+      const saved = localStorage.getItem('pulsefeed_sports_finance_news');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.length > 0 ? parsed : mockItems;
+      }
+    } catch (e) {
+      console.log('Failed to load saved news, using mock data');
+    }
+    return mockItems;
+  });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPodcastPlaying, setIsPodcastPlaying] = useState(false);
+  const [currentSpeech, setCurrentSpeech] = useState<SpeechSynthesisUtterance | null>(null);
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  // // Fetch news from backend
+  // useEffect(() => {
+  //   const fetchNews = async () => {
+  //     try {
+  //       const response = await api.getFeed();
+  //       if (response && response.items) {
+  //         setNewsItems(response.items);
+  //       }
+  //     } catch (error) {
+  //       console.log("Using mock data as backend is not available");
+  //       // Keep using mock data
+  //     }
+  //   };
+  //   fetchNews();
+  // }, []);
+  // Fetch initial news and open streaming socket
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    const fetchNews = async () => {
+      try {
+        const response = await api.getFeed();
+        if (response && response.items) {
+          // Only update if we don't already have news items from localStorage
+          setNewsItems((prev) => {
+            if (prev === mockItems || prev.length === 0) {
+              return response.items;
+            }
+            return prev; // Keep existing items from localStorage
+          });
+        }
+      } catch {
+        console.log("Using mock data as backend is not available");
+      }
+    };
+    fetchNews();
+
+    try {
+      console.log('Opening WebSocket connection for Sports/Finance...');
+      ws = api.openNewsStream({
+        categories: ["Sports", "Business", "Currency Markets"],
+        limit: 30
+      });
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected successfully for Sports/Finance');
+        setWsStatus('connected');
+      };
+      
+      ws.onmessage = (evt) => {
+        console.log('WebSocket message received:', evt.data);
+        try {
+          const item = JSON.parse(evt.data) as NewsItem;
+          console.log('Parsed news item:', item);
+          setNewsItems((prev) => {
+            // Check if item already exists
+            const existingIndex = prev.findIndex((p) => p.id === item.id);
+            let updated;
+            if (existingIndex !== -1) {
+              // Update existing item with new data (like llm_summary)
+              updated = [...prev];
+              updated[existingIndex] = { ...updated[existingIndex], ...item };
+              console.log('Updated existing item at index:', existingIndex);
+            } else {
+              // Add new item to the beginning, preserving existing items
+              updated = [item, ...prev];
+              console.log('Added new item, total items now:', updated.length);
+            }
+            
+            // Keep only last 20 items to prevent localStorage from getting too large
+            const trimmed = updated.slice(0, 20);
+            
+            // Save to localStorage
+            try {
+              localStorage.setItem('pulsefeed_sports_finance_news', JSON.stringify(trimmed));
+            } catch (e) {
+              console.log('Failed to save news to localStorage');
+            }
+            
+            return trimmed;
+          });
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setWsStatus('disconnected');
+      };
+      
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        setWsStatus('disconnected');
+      };
+      
+    } catch (e) {
+      console.error('Failed to create WebSocket:', e);
+    }
+
+    return () => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    };
+  }, []);
+
+  // Save news to localStorage whenever newsItems changes
+  useEffect(() => {
+    if (newsItems.length > 0 && newsItems !== mockItems) {
+      try {
+        // Keep only last 20 items
+        const trimmed = newsItems.slice(0, 20);
+        localStorage.setItem('pulsefeed_sports_finance_news', JSON.stringify(trimmed));
+      } catch (e) {
+        console.log('Failed to save news to localStorage');
+      }
+    }
+  }, [newsItems]);
+
+  // Filter for Sports and Financial categories
+  const filtered = useMemo(() => {
+    return newsItems.filter((item) => 
+      item.category === "Sports" || 
+      item.category === "Business" || 
+      item.category === "Currency Markets"
+    );
+  }, [newsItems]);
+
+  // Filter podcasts for Sports and Financial
+  const filteredPodcasts = useMemo(() => {
+    return podcastMockItems.filter(item => 
+      item.category === "Sports" || item.category === "Business"
+    );
+  }, []);
+
+  // Stop all speech
+  const stopAllSpeech = () => {
+    window.speechSynthesis.cancel();
+    setIsPlaying(false);
+    setIsPodcastPlaying(false);
+    setCurrentSpeech(null);
+  };
+
+  // ---------------- HANDLERS ----------------
+  const handleVoiceToggle = () => {
+    if (isPlaying) {
+      stopAllSpeech();
+      return;
+    }
+
+    stopAllSpeech();
+    const summariesText = filtered
+      .map((item) => `${item.title}. ${item.summary}`)
+      .join(". المقال التالي: ");
+
+    if (!summariesText.trim()) return;
+
+    const utterance = new SpeechSynthesisUtterance(summariesText);
+    utterance.rate = 0.8;
+    utterance.pitch = 1;
+    utterance.volume = 0.9;
+    utterance.lang = "ar";
+
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setCurrentSpeech(null);
+    };
+    utterance.onerror = () => {
+      setIsPlaying(false);
+      setCurrentSpeech(null);
+    };
+
+    setCurrentSpeech(utterance);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handlePodcastVoiceToggle = () => {
+    if (isPodcastPlaying) {
+      stopAllSpeech();
+      return;
+    }
+
+    stopAllSpeech();
+    const podcastText = podcastMockItems
+      .map((item) => `${item.title}. ${item.description}. يقدمه ${item.host}.`)
+      .join(". البرنامج التالي: ");
+
+    if (!podcastText.trim()) return;
+
+    const utterance = new SpeechSynthesisUtterance(podcastText);
+    utterance.rate = 0.8;
+    utterance.pitch = .51;
+    utterance.volume = 0.9;
+    utterance.lang = "ar";
+
+    utterance.onstart = () => setIsPodcastPlaying(true);
+    utterance.onend = () => {
+      setIsPodcastPlaying(false);
+      setCurrentSpeech(null);
+    };
+    utterance.onerror = () => {
+      setIsPodcastPlaying(false);
+      setCurrentSpeech(null);
+    };
+
+    setCurrentSpeech(utterance);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // // Helper function to stop all speech
+  // const stopAllSpeech = () => {
+  //   elevenlabsStreamingTTS.stop();
+  //   setIsPlaying(false);
+  //   setIsPodcastPlaying(false);
+  // };
+
+  // // Voice/Speech functionality for news
+  // const handleVoiceToggle = () => {
+  //   if (isPlaying) {
+  //     // Stop current speech
+  //     stopAllSpeech();
+  //   } else {
+  //     // Stop any existing speech first
+  //     stopAllSpeech();
+      
+  //     // Prepare individual news articles for sequential reading
+  //     const newsArticles = filtered.map(item => `${item.title}. ${item.summary}`);
+      
+  //     if (newsArticles.length === 0) {
+  //       console.warn("No news content to read");
+  //       return;
+  //     }
+      
+  //     // Use ElevenLabs Streaming TTS with sequential reading
+  //     try {
+  //       elevenlabsStreamingTTS.speakSequentially(newsArticles).then(() => {
+  //         console.log("Started ElevenLabs Sequential TTS");
+  //         setIsPlaying(true);
+  //         setIsPodcastPlaying(false);
+  //       }).catch(error => {
+  //         console.error("ElevenLabs Streaming TTS error:", error);
+  //         setIsPlaying(false);
+  //       });
+  //     } catch (error) {
+  //       console.error("Failed to start ElevenLabs Streaming TTS:", error);
+  //       setIsPlaying(false);
+  //     }
+  //   }
+  // };
+
+  // // Voice/Speech functionality for podcasts
+  // const handlePodcastVoiceToggle = () => {
+  //   if (isPodcastPlaying) {
+  //     // Stop current speech
+  //     stopAllSpeech();
+  //   } else {
+  //     // Stop any existing speech first
+  //     stopAllSpeech();
+      
+  //     // Start reading all podcast descriptions
+  //     const podcastText = filteredPodcasts.map(item => `${item.title}. ${item.description}. يقدمه ${item.host}.`).join(". البرنامج التالي: ");
+      
+  //     if (!podcastText.trim()) {
+  //       console.warn("No podcast content to read");
+  //       return;
+  //     }
+      
+  //     // Use ElevenLabs Streaming TTS
+  //     try {
+  //       elevenlabsStreamingTTS.speak(podcastText).then(() => {
+  //         console.log("Started ElevenLabs Streaming TTS for podcast");
+  //         setIsPodcastPlaying(true);
+  //         setIsPlaying(false);
+  //       }).catch(error => {
+  //         console.error("ElevenLabs Streaming TTS error:", error);
+  //         setIsPodcastPlaying(false);
+  //       });
+  //     } catch (error) {
+  //       console.error("Failed to start ElevenLabs Streaming TTS for podcast:", error);
+  //       setIsPodcastPlaying(false);
+  //     }
+  //   }
+  // };
+
+  return (
+    <div className="min-h-screen">
+      <SEO title="PulseFeed – Sports & Financial News" description="Your personalized sports and financial news feed with intelligent voice narration." />
+      <Header />
+      {/* <Navigation /> */}
+      
+      <h1 className="text-2xl font-semibold text-gray-800 mr-4 text-right md:pr-[300px]">
+        الأخبار الرياضية والمالية
+      </h1>
+      <main className="container mx-auto py-6 space-y-6">
+        {/* Header Section with Voice Button */}
+        <section className="flex items-center justify-between md:pl-[330px]">
+          <Button 
+            onClick={handleVoiceToggle}
+            variant={isPlaying ? "destructive" : "default"}
+            size="lg"
+            className="w-12 h-12 rounded-full flex items-center justify-center p-0 aspect-square"
+          >
+            {isPlaying ? 
+              <VolumeX className="w-6 h-6" /> : 
+              <img src="/play_button.jpg" alt="Play" className="w-8 h-8 object-cover rounded-full" />
+            }
+          </Button>
+          <div className="text-left align-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-grey-800 mr-4 md:pr-[300px]">
+              تغذيتك المخصصة
+            </h2>
+          </div>
+        </section>
+
+        {/* WebSocket Status and Test Button */}
+        <section className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <div 
+                className={`w-3 h-3 rounded-full ${
+                  wsStatus === 'connected' ? 'bg-green-500' : 
+                  wsStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+              />
+              <span className="text-sm text-gray-600">
+                {wsStatus === 'connected' ? 'Live News Connected' : 
+                 wsStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+              </span>
+            </div>
+            <span className="text-sm text-gray-500">
+              {newsItems.length > 0 && newsItems !== mockItems ? 
+                `${newsItems.length} news items loaded` : 'Using mock data'}
+            </span>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={async () => {
+                try {
+                  const response = await fetch('http://localhost:8000/api/news/test-stream');
+                  const data = await response.json();
+                  console.log('Test stream response:', data);
+                } catch (e) {
+                  console.error('Test stream failed:', e);
+                }
+              }}
+              variant="outline"
+            >
+              Test Stream
+            </Button>
+            
+            <Button 
+              onClick={async () => {
+                try {
+                  const response = await fetch('http://localhost:8000/api/news/test-rss-simple');
+                  const data = await response.json();
+                  console.log('Simple RSS test response:', data);
+                } catch (e) {
+                  console.error('Simple RSS test failed:', e);
+                }
+              }}
+              variant="outline"
+            >
+              Test RSS Simple
+            </Button>
+            
+            <Button 
+              onClick={async () => {
+                try {
+                  const response = await fetch('http://localhost:8000/api/news/feed');
+                  const data = await response.json();
+                  if (data && data.items) {
+                    setNewsItems(data.items);
+                    // Save to localStorage
+                    try {
+                      const trimmed = data.items.slice(0, 20);
+                      localStorage.setItem('pulsefeed_sports_finance_news', JSON.stringify(trimmed));
+                    } catch (e) {
+                      console.log('Failed to save news to localStorage');
+                    }
+                  }
+                } catch (e) {
+                  console.error('Manual refresh failed:', e);
+                }
+              }}
+              variant="secondary"
+            >
+              Manual Refresh
+            </Button>
+          </div>
+        </section>
+
+        {/* News Grid - 4 columns */}
+        <section>
+          <div className="grid grid-cols-1 gap-6">
+            {filtered.map((item) => (
+              <NewsCard 
+                key={item.id} 
+                item={item} 
+              />
+            ))}
+          </div>
+        </section>
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No sports or financial articles found.</p>
+          </div>
+        )}
+
+        {/* Podcast Section */}
+        <section className="border-t border-gray-800 pt-8 mt-12">
+          {/* Podcast Header with Voice Button */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-3 mb-4">
+              <Headphones className="w-7 h-7 text-purple-400" />
+              قسم البودكاست - Sports & Finance Podcasts
+            </h2>
+            <p className="text-gray-400 mt-1 mb-4">
+              استمع إلى أفضل البرامج الصوتية المتخصصة - Listen to the best specialized audio programs
+            </p>
+            <Button 
+              onClick={handlePodcastVoiceToggle}
+              variant={isPodcastPlaying ? "destructive" : "secondary"}
+              size="lg"
+              className="w-12 h-12 rounded-full flex items-center justify-center p-0 aspect-square bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {isPodcastPlaying ? 
+                <VolumeX className="w-5 h-5" /> : 
+                <img src="/play_button.jpg" alt="Play" className="w-8 h-8 object-cover rounded-full" />
+              }
+            </Button>
+          </div>
+
+          {/* Podcast Grid - 4 columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredPodcasts.map((item) => (
+              <PodcastCard 
+                key={item.id} 
+                item={item} 
+                onClick={() => {
+                  // Handle podcast click - could navigate to podcast player
+                  console.log(`Playing podcast: ${item.title}`);
+                }} 
+              />
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+};
+
+export default SportsFinance;

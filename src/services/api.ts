@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://20.242.200.78:8000/api";
+const WS_BASE = (import.meta.env.VITE_WS_URL as string) || API_BASE.replace(/^http/, "ws");
 
 export type LoginPayload = { email: string; password: string };
 export type SignupPayload = { name: string; email: string; password: string; categories: string[]; newsletter: boolean };
@@ -32,6 +33,18 @@ export const api = {
     const res = await fetch(`${API_BASE}/news/${id}`);
     if (!res.ok) throw new Error("News fetch failed");
     return res.json();
+  },
+  openNewsStream(params?: { categories?: string[]; sources?: string[]; limit?: number }) {
+    const qsParts: string[] = [];
+    if (params?.categories?.length) qsParts.push(`categories=${encodeURIComponent(params.categories.join(","))}`);
+    if (params?.sources?.length) qsParts.push(`sources=${encodeURIComponent(params.sources.join(","))}`);
+    if (params?.limit) qsParts.push(`limit=${params.limit}`);
+    const qs = qsParts.length ? `?${qsParts.join("&")}` : "";
+    const wsUrl = `${WS_BASE}/news/stream${qs}`;
+    console.log('Creating WebSocket connection to:', wsUrl);
+    console.log('WS_BASE:', WS_BASE);
+    console.log('API_BASE:', API_BASE);
+    return new WebSocket(wsUrl);
   },
   async subscribeNewsletter(email: string, subscribe: boolean) {
     const res = await fetch(`${API_BASE}/newsletter/subscribe`, {

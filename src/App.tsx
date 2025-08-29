@@ -8,6 +8,8 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import NewsDetail from "./pages/NewsDetail";
 import Newsletter from "./pages/Newsletter";
+import HealthTech from "./pages/HealthTech";
+import SportsFinance from "./pages/SportsFinance";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -23,6 +25,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/health-tech" element={<HealthTech />} />
+              <Route path="/sports-finance" element={<SportsFinance />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/news/:id" element={<NewsDetail />} />
               <Route path="/newsletter" element={<Newsletter />} />

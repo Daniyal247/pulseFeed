@@ -112,7 +112,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-color: #0a0a0a; /* Ensure very dark background */
+    background-color: #ffffff; /* Ensure very dark background */
     color: #ffffff; /* Ensure white text */
   }
 
