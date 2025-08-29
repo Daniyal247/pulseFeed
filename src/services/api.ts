@@ -2,7 +2,6 @@
 // const WS_BASE = (import.meta.env.VITE_WS_URL as string) || API_BASE.replace(/^http/, "ws");
 const API_BASE = import.meta.env.VITE_API_URL || "https://pulse-feed-backend.azurewebsites.net/";
 
-// Derive WS_BASE properly (wss if https, ws if http)
 const WS_BASE = import.meta.env.VITE_WS_URL || API_BASE.replace(/^http/, "ws");
 
 
