@@ -4,6 +4,10 @@
 
 **URL**: https://lovable.dev/projects/cf4f9e3d-75b2-4ccc-94c2-0efe43f6f35f
 
+#The version 2 is deployed on vecel
+
+**URL**: pulse-feed-fbwu8q4zh-syed-danial-khurrams-projects.vercel.app 
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
